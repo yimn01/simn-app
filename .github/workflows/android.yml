@@ -24,12 +24,12 @@ jobs:
       - name: Dar permiso de ejecucion a gradlew
         run: chmod +x ./gradlew
 
-      - name: Compilar APK de debug
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+      - name: Compilar APK release firmada
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Subir el APK como artefacto descargable
         uses: actions/upload-artifact@v4
         with:
-          name: simn-app-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: simn-app-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
