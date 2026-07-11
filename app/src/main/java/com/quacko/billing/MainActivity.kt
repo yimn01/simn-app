@@ -5,9 +5,13 @@ import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.webkit.CookieManager
 import android.webkit.PermissionRequest
@@ -28,6 +32,11 @@ class MainActivity : ComponentActivity() {
     private var splash: View? = null
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private lateinit var audioManager: AudioManager
+
+    private val audioDeviceCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) { updateAudioRouting() }
+        override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) { updateAudioRouting() }
+    }
 
     private val fileChooser = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -117,23 +126,59 @@ class MainActivity : ComponentActivity() {
     }
 
     @Suppress("DEPRECATION")
-    private fun enterCommunicationAudio() {
+    private fun updateAudioRouting() {
         try {
             audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-            audioManager.isSpeakerphoneOn = true
+            val outputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            val hasWired = outputs.any {
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+            }
+            val hasBluetooth = outputs.any {
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
+            }
+            when {
+                hasBluetooth -> {
+                    audioManager.isSpeakerphoneOn = false
+                    try { audioManager.startBluetoothSco(); audioManager.isBluetoothScoOn = true } catch (_: Exception) {}
+                }
+                hasWired -> {
+                    try { audioManager.stopBluetoothSco() } catch (_: Exception) {}
+                    audioManager.isBluetoothScoOn = false
+                    audioManager.isSpeakerphoneOn = false
+                }
+                else -> {
+                    try { audioManager.stopBluetoothSco() } catch (_: Exception) {}
+                    audioManager.isBluetoothScoOn = false
+                    audioManager.isSpeakerphoneOn = true
+                }
+            }
         } catch (_: Exception) {}
     }
 
     @Suppress("DEPRECATION")
     private fun restoreAudio() {
         try {
-            audioManager.mode = AudioManager.MODE_NORMAL
+            audioManager.stopBluetoothSco()
+            audioManager.isBluetoothScoOn = false
             audioManager.isSpeakerphoneOn = false
+            audioManager.mode = AudioManager.MODE_NORMAL
         } catch (_: Exception) {}
     }
 
-    override fun onResume() { super.onResume(); enterCommunicationAudio() }
-    override fun onPause() { super.onPause(); restoreAudio() }
+    override fun onResume() {
+        super.onResume()
+        audioManager.registerAudioDeviceCallback(audioDeviceCallback, Handler(Looper.getMainLooper()))
+        updateAudioRouting()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        try { audioManager.unregisterAudioDeviceCallback(audioDeviceCallback) } catch (_: Exception) {}
+        restoreAudio()
+    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState); webView.saveState(outState)
