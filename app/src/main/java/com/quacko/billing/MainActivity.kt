@@ -3,7 +3,9 @@ package com.quacko.billing
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
@@ -20,17 +22,12 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import com.quacko.billing.data.Config
 
-/**
- * The SIMN client app is a native shell around the existing quack-o client portal.
- * The portal already implements login + VRI (video) + OPI (audio) calling over its
- * SIP/WebRTC softphone, usage, ratings and invoices — so we load it in a WebView
- * and grant it camera/microphone access.
- */
 class MainActivity : ComponentActivity() {
 
     private lateinit var webView: WebView
     private var splash: View? = null
     private var fileCallback: ValueCallback<Array<Uri>>? = null
+    private lateinit var audioManager: AudioManager
 
     private val fileChooser = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -42,7 +39,7 @@ class MainActivity : ComponentActivity() {
 
     private val permissions = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { /* WebRTC re-checks per call; nothing to do here */ }
+    ) { }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,7 +48,9 @@ class MainActivity : ComponentActivity() {
         webView = findViewById(R.id.webview)
         splash = findViewById(R.id.splash)
 
-        // Ask for camera + mic up front so the first video call connects instantly.
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        volumeControlStream = AudioManager.STREAM_VOICE_CALL
+
         permissions.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
 
         CookieManager.getInstance().setAcceptCookie(true)
@@ -78,10 +77,9 @@ class MainActivity : ComponentActivity() {
                         try { startActivity(Intent(Intent.ACTION_VIEW, url)) } catch (_: ActivityNotFoundException) {}
                         true
                     }
-                    else -> false // keep http/https (portal + Stripe) inside the WebView
+                    else -> false
                 }
             }
-
             override fun onPageFinished(view: WebView, url: String) {
                 splash?.visibility = View.GONE
             }
@@ -91,7 +89,6 @@ class MainActivity : ComponentActivity() {
             override fun onPermissionRequest(request: PermissionRequest) {
                 runOnUiThread { request.grant(request.resources) }
             }
-
             override fun onShowFileChooser(
                 webView: WebView,
                 filePathCallback: ValueCallback<Array<Uri>>,
@@ -111,32 +108,38 @@ class MainActivity : ComponentActivity() {
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (webView.canGoBack()) {
-                    webView.goBack()
-                } else {
-                    isEnabled = false
-                    onBackPressedDispatcher.onBackPressed()
-                }
+                if (webView.canGoBack()) webView.goBack()
+                else { isEnabled = false; onBackPressedDispatcher.onBackPressed() }
             }
         })
 
-        if (savedInstanceState == null) {
-            webView.loadUrl(Config.portalUrl)
-        }
+        if (savedInstanceState == null) webView.loadUrl(Config.portalUrl)
     }
+
+    @Suppress("DEPRECATION")
+    private fun enterCommunicationAudio() {
+        try {
+            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+            audioManager.isSpeakerphoneOn = true
+        } catch (_: Exception) {}
+    }
+
+    @Suppress("DEPRECATION")
+    private fun restoreAudio() {
+        try {
+            audioManager.mode = AudioManager.MODE_NORMAL
+            audioManager.isSpeakerphoneOn = false
+        } catch (_: Exception) {}
+    }
+
+    override fun onResume() { super.onResume(); enterCommunicationAudio() }
+    override fun onPause() { super.onPause(); restoreAudio() }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        webView.saveState(outState)
+        super.onSaveInstanceState(outState); webView.saveState(outState)
     }
-
     override fun onRestoreInstanceState(savedInstanceState: Bundle) {
-        super.onRestoreInstanceState(savedInstanceState)
-        webView.restoreState(savedInstanceState)
+        super.onRestoreInstanceState(savedInstanceState); webView.restoreState(savedInstanceState)
     }
-
-    override fun onDestroy() {
-        webView.destroy()
-        super.onDestroy()
-    }
+    override fun onDestroy() { webView.destroy(); super.onDestroy() }
 }
