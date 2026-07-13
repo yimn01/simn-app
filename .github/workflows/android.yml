@@ -24,12 +24,19 @@ jobs:
       - name: Dar permiso de ejecucion a gradlew
         run: chmod +x ./gradlew
 
-      - name: Compilar APK release firmada
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
+      - name: Compilar APK y AAB release firmados
+        run: ./gradlew assembleRelease bundleRelease --no-daemon --stacktrace
 
-      - name: Subir el APK como artefacto descargable
+      - name: Subir APK
         uses: actions/upload-artifact@v4
         with:
           name: simn-app-release-apk
           path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      - name: Subir AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: simn-app-release-aab
+          path: app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
