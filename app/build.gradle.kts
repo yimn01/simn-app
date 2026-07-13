@@ -12,7 +12,7 @@ android {
         applicationId = "com.silvermindsllc.languageaccess"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
+        versionCode = 3
         versionName = "1.0"
         vectorDrawables { useSupportLibrary = true }
     }
