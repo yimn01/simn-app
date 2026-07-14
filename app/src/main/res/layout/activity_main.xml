@@ -8,32 +8,41 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- SIMN splash shown until the portal finishes loading -->
     <LinearLayout
         android:id="@+id/splash"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:gravity="center"
-        android:background="#FFFFFF">
+        android:background="#0F5F63">
 
         <ImageView
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:src="@drawable/simn_logo"
-            android:contentDescription="SIMN" />
-
-        <ProgressBar
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:indeterminateTint="#17868B" />
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:src="@drawable/ic_launcher_foreground"
+            android:contentDescription="Silverminds Language Access" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="Loading…"
-            android:textColor="#6B7A80" />
+            android:layout_marginTop="8dp"
+            android:text="Silverminds Language Access"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Smarter Connections. Better Understanding."
+            android:textColor="#CFE4E3"
+            android:textSize="13sp" />
+
+        <ProgressBar
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:indeterminateTint="#EF8B2C" />
     </LinearLayout>
 </FrameLayout>
