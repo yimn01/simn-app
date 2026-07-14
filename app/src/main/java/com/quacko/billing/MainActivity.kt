@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var webView: WebView
     private var splash: View? = null
+    private var splashStart = 0L
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private lateinit var audioManager: AudioManager
 
@@ -56,6 +57,7 @@ class MainActivity : ComponentActivity() {
         setContentView(R.layout.activity_main)
         webView = findViewById(R.id.webview)
         splash = findViewById(R.id.splash)
+        splashStart = System.currentTimeMillis()
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         volumeControlStream = AudioManager.STREAM_VOICE_CALL
@@ -90,7 +92,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
             override fun onPageFinished(view: WebView, url: String) {
-                splash?.visibility = View.GONE
+                // Keep the splash up long enough to read the branding (min ~2.2s)
+                val minSplashMs = 2200L
+                val elapsed = System.currentTimeMillis() - splashStart
+                val remaining = (minSplashMs - elapsed).coerceAtLeast(0L)
+                webView.postDelayed({ splash?.visibility = View.GONE }, remaining)
             }
         }
 
@@ -125,6 +131,11 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) webView.loadUrl(Config.portalUrl)
     }
 
+    /**
+     * VoIP audio routing: communication mode for echo cancellation, and send the
+     * call to a headset when one is connected (wired / USB / Bluetooth); only fall
+     * back to the loudspeaker when nothing is plugged in.
+     */
     @Suppress("DEPRECATION")
     private fun updateAudioRouting() {
         try {
@@ -147,12 +158,12 @@ class MainActivity : ComponentActivity() {
                 hasWired -> {
                     try { audioManager.stopBluetoothSco() } catch (_: Exception) {}
                     audioManager.isBluetoothScoOn = false
-                    audioManager.isSpeakerphoneOn = false
+                    audioManager.isSpeakerphoneOn = false   // route to the wired/USB headset
                 }
                 else -> {
                     try { audioManager.stopBluetoothSco() } catch (_: Exception) {}
                     audioManager.isBluetoothScoOn = false
-                    audioManager.isSpeakerphoneOn = true
+                    audioManager.isSpeakerphoneOn = true    // no headset -> loud hands-free
                 }
             }
         } catch (_: Exception) {}
